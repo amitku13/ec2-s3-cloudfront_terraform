@@ -1,6 +1,5 @@
 name: Deploy AWS Infrastructure with Terraform
 
-# Trigger the workflow on push to the main branch
 on:
   push:
     branches:
@@ -8,35 +7,29 @@ on:
 
 jobs:
   terraform:
-    runs-on: ubuntu-latest  # Set the environment for the workflow
+    runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the repository
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    # Step 2: Set up Terraform
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v1
-      with:
-        terraform_version: '1.6.0'  # Specify the Terraform version you want to use
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: '1.6.0'
 
-    # Step 3: Configure AWS Credentials using OIDC (AWS Identity Federation)
-    - name: Configure AWS Credentials using OIDC
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        role-to-assume: arn:aws:iam::120569613442:role/amit_ec2_s3_cloudfront  # Correct IAM role ARN
-        aws-region: us-east-1  # Correct AWS region parameter name
+      # Configure AWS Credentials using OIDC
+      - name: Configure AWS Credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::120569613442:role/amit_ec2_s3_cloudfront  # Your IAM role ARN
+          aws-region: us-east-1  # Specify AWS region
 
-    # Step 4: Initialize Terraform (downloads required plugins)
-    - name: Terraform Init
-      run: terraform init
+      - name: Terraform Init
+        run: terraform init
 
-    # Step 5: Run Terraform Plan
-    - name: Terraform Plan
-      id: plan
-      run: terraform plan -out=tfplan
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
 
-    # Step 6: Apply the Terraform Plan (approve automatically)
-    - name: Terraform Apply
-      run: terraform apply -auto-approve tfplan
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
