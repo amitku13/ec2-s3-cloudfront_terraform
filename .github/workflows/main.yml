@@ -1,6 +1,6 @@
 name: Deploy AWS Infrastructure with Terraform
 
-# Trigger the workflow on push to main branch
+# Trigger the workflow on push to the main branch
 on:
   push:
     branches:
@@ -25,8 +25,8 @@ jobs:
     - name: Configure AWS Credentials using OIDC
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        role_to_assume: arn:aws:iam::120569613442:role/amit_ec2,s3,cloudfront
-        aws_region: us-east-1
+        role-to-assume: arn:aws:iam::120569613442:role/amit_ec2_s3_cloudfront  # Correct role ARN format
+        aws-region: us-east-1  # Specify the AWS region
 
     # Step 4: Initialize Terraform (downloads required plugins)
     - name: Terraform Init
