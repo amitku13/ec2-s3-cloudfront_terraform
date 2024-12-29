@@ -1,6 +1,6 @@
 name: Deploy AWS Infrastructure with Terraform
 
-# Trigger the workflow on push to the main branch
+# Trigger the workflow on push to main branch
 on:
   push:
     branches:
@@ -11,32 +11,33 @@ jobs:
     runs-on: ubuntu-latest  # Set the environment for the workflow
 
     steps:
-      # Step 1: Checkout the repository
-      - name: Checkout code
-        uses: actions/checkout@v2
+    # Step 1: Checkout the repository
+    - name: Checkout code
+      uses: actions/checkout@v2
 
-      # Step 2: Set up Terraform
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
-        with:
-          terraform_version: '1.6.0'  # Specify the Terraform version you want to use
+    # Step 2: Set up Terraform
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: '1.6.0'  # Specify the Terraform version you want to use
 
-      # Step 3: Configure AWS Credentials using OIDC
-      - name: Configure AWS Credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          role-to-assume: arn:aws:iam::120569613442:role/amit_ec2_s3_cloudfront  # Your IAM role ARN
-          aws-region: us-east-1  # Specify AWS region
+    # Step 3: Configure AWS Credentials (use GitHub Secrets for AWS credentials)
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws_region: us-east-1
 
-      # Step 4: Initialize Terraform (downloads required plugins)
-      - name: Terraform Init
-        run: terraform init
+    # Step 4: Initialize Terraform (downloads required plugins)
+    - name: Terraform Init
+      run: terraform init
 
-      # Step 5: Run Terraform Plan
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan -out=tfplan
+    # Step 5: Run Terraform Plan
+    - name: Terraform Plan
+      id: plan
+      run: terraform plan -out=tfplan
 
-      # Step 6: Apply the Terraform Plan (approve automatically)
-      - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+    # Step 6: Apply the Terraform Plan (approve automatically)
+    - name: Terraform Apply
+      run: terraform apply -auto-approve tfplan
