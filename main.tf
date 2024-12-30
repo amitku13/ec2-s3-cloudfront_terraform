@@ -21,6 +21,11 @@ data "aws_s3_bucket" "existing_bucket" {
 resource "aws_s3_bucket" "my_bucket" {
   count  = length(data.aws_s3_bucket.existing_bucket.id) == 0 ? 1 : 0
   bucket = "my-unique-bucket-name-1989" # Replace with a globally unique bucket name
+}
+
+# S3 Bucket ACL
+resource "aws_s3_bucket_acl" "my_bucket_acl" {
+  bucket = aws_s3_bucket.my_bucket[0].id
   acl    = "private" # Use "private" ACL to avoid conflicts
 }
 
@@ -153,4 +158,9 @@ resource "aws_cloudfront_distribution" "my_distribution" {
   tags = {
     Name = "CloudFrontDistribution"
   }
+}
+
+# Output S3 Bucket Name
+output "s3_bucket_name" {
+  value = aws_s3_bucket.my_bucket[0].id
 }
