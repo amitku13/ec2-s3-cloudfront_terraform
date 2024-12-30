@@ -3,14 +3,14 @@ provider "aws" {
   region = "us-east-1" # Change to your preferred region
 }
 
-# Variables for AMI ID and Instance Type
-variable "ami_id" {
-  default = "ami-0c55b159cbfafe1f0" # Replace with your AMI ID
-}
-
-variable "instance_type" {
-  default = "t2.micro" # Replace with your desired instance type
-}
+# Variables (Define these only if not already defined elsewhere)
+# Uncomment if necessary and not already declared in another file
+# variable "ami_id" {
+#   default = "ami-0c55b159cbfafe1f0" # Replace with your AMI ID
+# }
+# variable "instance_type" {
+#   default = "t2.micro" # Replace with your desired instance type
+# }
 
 # Data Source: Check if S3 Bucket Exists
 data "aws_s3_bucket" "existing_bucket" {
@@ -102,8 +102,8 @@ resource "aws_security_group" "ec2_sg" {
 
 # EC2 Instance (using Security Group)
 resource "aws_instance" "my_instance" {
-  ami           = var.ami_id
-  instance_type = var.instance_type
+  ami           = "ami-0c55b159cbfafe1f0" # Replace with your AMI ID
+  instance_type = "t2.micro"              # Replace with your desired instance type
   security_groups = [aws_security_group.ec2_sg[0].name]
 
   tags = {
