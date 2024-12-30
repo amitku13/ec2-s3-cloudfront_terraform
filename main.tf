@@ -30,14 +30,14 @@ resource "aws_s3_bucket" "my_bucket" {
 # S3 Bucket ACL (to replace deprecated 'acl' argument)
 resource "aws_s3_bucket_acl" "my_bucket_acl" {
   count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
-  bucket = aws_s3_bucket.my_bucket.id
+  bucket = aws_s3_bucket.my_bucket[count.index].id
   acl    = "private"
 }
 
 # S3 Bucket Website Configuration
 resource "aws_s3_bucket_website_configuration" "my_bucket_website" {
   count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
-  bucket = aws_s3_bucket.my_bucket.id
+  bucket = aws_s3_bucket.my_bucket[count.index].id
 
   index_document {
     suffix = "index.html"
@@ -51,7 +51,7 @@ resource "aws_s3_bucket_website_configuration" "my_bucket_website" {
 # Public Access Block for the S3 Bucket
 resource "aws_s3_bucket_public_access_block" "my_bucket_public_access" {
   count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
-  bucket = aws_s3_bucket.my_bucket.id
+  bucket = aws_s3_bucket.my_bucket[count.index].id
 
   block_public_acls   = false  # Allow public ACLs
   ignore_public_acls  = false  # Don't ignore public ACLs
@@ -61,14 +61,14 @@ resource "aws_s3_bucket_public_access_block" "my_bucket_public_access" {
 # S3 Bucket Policy for Public Read Access
 resource "aws_s3_bucket_policy" "my_bucket_policy" {
   count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
-  bucket = aws_s3_bucket.my_bucket.id
+  bucket = aws_s3_bucket.my_bucket[count.index].id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Action    = "s3:GetObject"
         Effect    = "Allow"
-        Resource  = "${aws_s3_bucket.my_bucket.arn}/*"
+        Resource  = "${aws_s3_bucket.my_bucket[count.index].arn}/*"
         Principal = "*"
       }
     ]
@@ -80,7 +80,7 @@ resource "aws_cloudfront_distribution" "my_distribution" {
   count = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
 
   origin {
-    domain_name = aws_s3_bucket.my_bucket.bucket_regional_domain_name
+    domain_name = aws_s3_bucket.my_bucket[count.index].bucket_regional_domain_name
     origin_id   = "s3-origin"
   }
 
@@ -151,11 +151,16 @@ resource "aws_security_group" "ec2_sg" {
 
 # EC2 Instance (using Security Group)
 resource "aws_instance" "my_instance" {
+  count = length(data.aws_security_group.my_existing_sg.id) == 0 ? 1 : 0
   ami           = var.ami_id # Provide AMI ID via variables
   instance_type = var.instance_type # Provide instance type via variables
-  security_groups = [aws_security_group.ec2_sg.name]
+  security_groups = [aws_security_group.ec2_sg[count.index].name]
 
   tags = {
     Name = "Terraform-EC2"
   }
+}
+
+output "s3_bucket_name" {
+  value = aws_s3_bucket.my_bucket[count.index].id
 }
