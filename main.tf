@@ -1,16 +1,42 @@
-# Provider Configuration
 provider "aws" {
   region = "us-east-1" # Change to your preferred region
 }
 
-# S3 Bucket for Website Hosting
+# Generate a random suffix for uniqueness
+resource "random_id" "bucket_id" {
+  byte_length = 8
+}
+
+resource "random_id" "sg_id" {
+  byte_length = 8
+}
+
+# Check if the S3 Bucket already exists (using data source)
+data "aws_s3_bucket" "my_existing_bucket" {
+  bucket = "my-unique-bucket-name-${random_id.bucket_id.hex}"
+}
+
+# Check if the Security Group already exists (using data source)
+data "aws_security_group" "my_existing_sg" {
+  name = "ec2-sg-unique-${random_id.sg_id.hex}"
+}
+
+# Conditionally create S3 Bucket if not already existing
 resource "aws_s3_bucket" "my_bucket" {
-  bucket = "my-unique-bucket-name-1989" # Replace with a globally unique bucket name
-  acl    = "private" # Use "private" ACL to avoid conflicts
+  count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
+  bucket = "my-unique-bucket-name-${random_id.bucket_id.hex}" # Ensure unique name
+}
+
+# S3 Bucket ACL (to replace deprecated 'acl' argument)
+resource "aws_s3_bucket_acl" "my_bucket_acl" {
+  count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
+  bucket = aws_s3_bucket.my_bucket.id
+  acl    = "private"
 }
 
 # S3 Bucket Website Configuration
 resource "aws_s3_bucket_website_configuration" "my_bucket_website" {
+  count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
   bucket = aws_s3_bucket.my_bucket.id
 
   index_document {
@@ -22,8 +48,9 @@ resource "aws_s3_bucket_website_configuration" "my_bucket_website" {
   }
 }
 
-# Public Access Block for the S3 Bucket - Allow public access for the bucket policy
+# Public Access Block for the S3 Bucket
 resource "aws_s3_bucket_public_access_block" "my_bucket_public_access" {
+  count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
   bucket = aws_s3_bucket.my_bucket.id
 
   block_public_acls   = false  # Allow public ACLs
@@ -33,6 +60,7 @@ resource "aws_s3_bucket_public_access_block" "my_bucket_public_access" {
 
 # S3 Bucket Policy for Public Read Access
 resource "aws_s3_bucket_policy" "my_bucket_policy" {
+  count  = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
   bucket = aws_s3_bucket.my_bucket.id
   policy = jsonencode({
     Version = "2012-10-17"
@@ -49,6 +77,8 @@ resource "aws_s3_bucket_policy" "my_bucket_policy" {
 
 # CloudFront Distribution (dependent on S3 Bucket)
 resource "aws_cloudfront_distribution" "my_distribution" {
+  count = length(data.aws_s3_bucket.my_existing_bucket.id) == 0 ? 1 : 0
+
   origin {
     domain_name = aws_s3_bucket.my_bucket.bucket_regional_domain_name
     origin_id   = "s3-origin"
@@ -91,9 +121,10 @@ resource "aws_cloudfront_distribution" "my_distribution" {
   }
 }
 
-# Security Group for EC2 Instance
+# Security Group for EC2 Instance (ensure name is unique)
 resource "aws_security_group" "ec2_sg" {
-  name        = "ec2-sg-unique" # Changed name to avoid duplication
+  count  = length(data.aws_security_group.my_existing_sg.id) == 0 ? 1 : 0
+  name        = "ec2-sg-unique-${random_id.sg_id.hex}" # Ensure unique name
   description = "Allow SSH and HTTP traffic"
 
   ingress {
