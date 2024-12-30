@@ -2,11 +2,12 @@ name: Terraform CI/CD
 
 on:
   workflow_dispatch: # Enables manual trigger with inputs
-    inputs: destroy
-      action: # Input for specifying the action
+    inputs:
+      action: destroy
         description: "Choose 'apply' to create resources or 'destroy' to delete resources."
         required: true
         default: apply
+        type: choice
         options:
           - apply
           - destroy
