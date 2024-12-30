@@ -3,15 +3,30 @@ provider "aws" {
   region = "us-east-1" # Change to your preferred region
 }
 
+# Variables for AMI ID and Instance Type
+variable "ami_id" {
+  default = "ami-0c55b159cbfafe1f0" # Replace with your AMI ID
+}
+
+variable "instance_type" {
+  default = "t2.micro" # Replace with your desired instance type
+}
+
+# Data Source: Check if S3 Bucket Exists
+data "aws_s3_bucket" "existing_bucket" {
+  bucket = "my-unique-bucket-name-1989"
+}
+
 # S3 Bucket for Website Hosting
 resource "aws_s3_bucket" "my_bucket" {
+  count  = length(data.aws_s3_bucket.existing_bucket.id) == 0 ? 1 : 0
   bucket = "my-unique-bucket-name-1989" # Replace with a globally unique bucket name
   acl    = "private" # Use "private" ACL to avoid conflicts
 }
 
 # S3 Bucket Website Configuration
 resource "aws_s3_bucket_website_configuration" "my_bucket_website" {
-  bucket = aws_s3_bucket.my_bucket.id
+  bucket = aws_s3_bucket.my_bucket[0].id
 
   index_document {
     suffix = "index.html"
@@ -22,9 +37,9 @@ resource "aws_s3_bucket_website_configuration" "my_bucket_website" {
   }
 }
 
-# Public Access Block for the S3 Bucket - Allow public access for the bucket policy
+# Public Access Block for the S3 Bucket
 resource "aws_s3_bucket_public_access_block" "my_bucket_public_access" {
-  bucket = aws_s3_bucket.my_bucket.id
+  bucket = aws_s3_bucket.my_bucket[0].id
 
   block_public_acls   = false  # Allow public ACLs
   ignore_public_acls  = false  # Don't ignore public ACLs
@@ -33,24 +48,73 @@ resource "aws_s3_bucket_public_access_block" "my_bucket_public_access" {
 
 # S3 Bucket Policy for Public Read Access
 resource "aws_s3_bucket_policy" "my_bucket_policy" {
-  bucket = aws_s3_bucket.my_bucket.id
+  bucket = aws_s3_bucket.my_bucket[0].id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Action    = "s3:GetObject"
         Effect    = "Allow"
-        Resource  = "${aws_s3_bucket.my_bucket.arn}/*"
+        Resource  = "${aws_s3_bucket.my_bucket[0].arn}/*"
         Principal = "*"
       }
     ]
   })
 }
 
+# Data Source: Check if Security Group Exists
+data "aws_security_group" "existing_sg" {
+  filter {
+    name   = "group-name"
+    values = ["ec2-sg-unique"]
+  }
+
+  vpc_id = "vpc-006993ee517a74e91" # Replace with your VPC ID
+}
+
+# Security Group for EC2 Instance
+resource "aws_security_group" "ec2_sg" {
+  count       = length(data.aws_security_group.existing_sg.id) == 0 ? 1 : 0
+  name        = "ec2-sg-unique"
+  description = "Allow SSH and HTTP traffic"
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Allow SSH from anywhere, restrict for production
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Allow HTTP traffic from anywhere
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# EC2 Instance (using Security Group)
+resource "aws_instance" "my_instance" {
+  ami           = var.ami_id
+  instance_type = var.instance_type
+  security_groups = [aws_security_group.ec2_sg[0].name]
+
+  tags = {
+    Name = "Terraform-EC2"
+  }
+}
+
 # CloudFront Distribution (dependent on S3 Bucket)
 resource "aws_cloudfront_distribution" "my_distribution" {
   origin {
-    domain_name = aws_s3_bucket.my_bucket.bucket_regional_domain_name
+    domain_name = aws_s3_bucket.my_bucket[0].bucket_regional_domain_name
     origin_id   = "s3-origin"
   }
 
@@ -88,43 +152,5 @@ resource "aws_cloudfront_distribution" "my_distribution" {
 
   tags = {
     Name = "CloudFrontDistribution"
-  }
-}
-
-# Security Group for EC2 Instance
-resource "aws_security_group" "ec2_sg" {
-  name        = "ec2-sg-unique" # Changed name to avoid duplication
-  description = "Allow SSH and HTTP traffic"
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Allow SSH from anywhere, restrict for production
-  }
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Allow HTTP traffic from anywhere
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# EC2 Instance (using Security Group)
-resource "aws_instance" "my_instance" {
-  ami           = var.ami_id # Provide AMI ID via variables
-  instance_type = var.instance_type # Provide instance type via variables
-  security_groups = [aws_security_group.ec2_sg.name]
-
-  tags = {
-    Name = "Terraform-EC2"
   }
 }
